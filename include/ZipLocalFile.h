@@ -6,13 +6,16 @@
 #ifndef ZIP_LOCAL_FILE_H_
 #define ZIP_LOCAL_FILE_H_
 
-uint32_t const ZIP_LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
-uint32_t const ZIP_LOCAL_FILE_HEADER_DATA_DESCRIPTOR_SIGNATURE = 0x08074b50;
+extern uint32_t const ZIP_LOCAL_FILE_HEADER_SIGNATURE;
+extern uint32_t const ZIP_LOCAL_FILE_HEADER_DATA_DESCRIPTOR_SIGNATURE;
 
 class ZipLocalFile {
 public:
-    ZipLocalFile(std::vector<uint8_t> const& data, int& start_offset);
-    std::pair<int,int> GetFileName();
+    ZipLocalFile(std::vector<uint8_t> const& data, int& _start_offset);
+    std::pair<int,int> GetFileName() const;
+    std::pair<int,int> GetExtraField() const;
+    std::pair<int,int> GetData() const;
+    uint16_t GetCompressionMethod() const;
 
 private:
     uint16_t version_needed;
@@ -24,13 +27,13 @@ private:
     uint32_t crc32;
     uint32_t compressed_size;
     uint32_t uncompressed_size;
-    uint16_t filename_length;
+    uint16_t file_name_length;
     uint16_t extra_field_length;
 
-    int filename_start_offset, filename_end_offset;
+    int file_name_start_offset, file_name_end_offset;
     int extra_field_start_offset, extra_field_end_offset;
     int data_start_offset, data_end_offset;
-    std::string filename;
+    std::string file_name;
 };
 
 #endif // ZIP_LOCAL_FILE_H_

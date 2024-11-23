@@ -3,18 +3,13 @@
 #include"ZipUtil.h"
 #include<stdexcept>
 
-int const VERSION_MAX_MAJOR = 2;
-int const VERSION_MAX_MINOR = 0;
-int version_supported(uint16_t version_needed) {
-    int major = version_needed / 10;
-    int minor = version_needed % 10;
-    if (major > VERSION_MAX_MAJOR) return 0;
-    else if (major == 2 && minor > VERSION_MAX_MINOR) return 0;
-
-    return 1;
-}
+extern int const ZIP_VERSION_MAX_MAJOR;
+extern int const ZIP_VERSION_MAX_MINOR;
 extern char _zip_errmsg[];
 extern int const _zip_errmsg_sz;
+
+uint32_t const ZIP_LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
+uint32_t const ZIP_LOCAL_FILE_HEADER_DATA_DESCRIPTOR_SIGNATURE = 0x08074b50;
 
 ZipLocalFile::ZipLocalFile(std::vector<uint8_t> const& data, int& _start_offset) {
     int u = _start_offset;
@@ -30,8 +25,8 @@ ZipLocalFile::ZipLocalFile(std::vector<uint8_t> const& data, int& _start_offset)
     version_needed = GetUint16(data, u);
     if (!version_supported(version_needed)) {
         int major = version_needed / 10, minor = version_needed % 10;
-        snprintf(_zip_errmsg, _zip_errmsg_sz, "ZipFile::ZipLocalFile::Constrcutor::Header: Unsupported version, maximum supportede version is %d.%d, got version %d.%d", 
-            VERSION_MAX_MAJOR, VERSION_MAX_MINOR, major, minor);
+        snprintf(_zip_errmsg, _zip_errmsg_sz, "ZipFile::ZipLocalFile::Constructor::Header: Unsupported version, maximum supported version is %d.%d, got version %d.%d", 
+            ZIP_VERSION_MAX_MAJOR, ZIP_VERSION_MAX_MINOR, major, minor);
         throw std::invalid_argument(_zip_errmsg);
     }
 
@@ -42,15 +37,15 @@ ZipLocalFile::ZipLocalFile(std::vector<uint8_t> const& data, int& _start_offset)
     crc32 = GetUint32(data, u);
     compressed_size = GetUint32(data, u);
     uncompressed_size = GetUint32(data, u);
-    filename_length = GetUint16(data, u);
+    file_name_length = GetUint16(data, u);
     extra_field_length = GetUint16(data, u);
 
-    if (!CheckSize(data, u, filename_length)) {
+    if (!CheckSize(data, u, file_name_length)) {
         throw std::length_error("ZipFile::ZipLocalFile::Constructor::Header::FileName: Unexpected EOF");
     }
-    filename_start_offset = u;
-    u += filename_length;
-    filename_end_offset = u;
+    file_name_start_offset = u;
+    u += file_name_length;
+    file_name_end_offset = u;
 
     if (!CheckSize(data, u, extra_field_length)) {
         throw std::length_error("ZipFile::ZipLocalFile::Constructor::Header::ExtraField: Unexpected EOF");
@@ -89,6 +84,18 @@ ZipLocalFile::ZipLocalFile(std::vector<uint8_t> const& data, int& _start_offset)
     _start_offset = u;
 }
 
-std::pair<int,int> ZipLocalFile::GetFileName() {
-    return std::make_pair(filename_start_offset, filename_end_offset);
+std::pair<int,int> ZipLocalFile::GetFileName() const {
+    return std::make_pair(file_name_start_offset, file_name_end_offset);
+}
+
+std::pair<int,int> ZipLocalFile::GetExtraField() const {
+    return std::make_pair(extra_field_start_offset, extra_field_end_offset);
+}
+
+std::pair<int,int> ZipLocalFile::GetData() const {
+    return std::make_pair(data_start_offset, data_end_offset);
+}
+
+uint16_t ZipLocalFile::GetCompressionMethod() const {
+    return compression_method;
 }

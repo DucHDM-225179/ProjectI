@@ -17,6 +17,14 @@ uint32_t ZipBitStream::GetBit() const {
     return w >> (cursor%8); // cursor & 7
 }
 int ZipBitStream::SkipBit(int bitlength) {
-    if (bitsize - cursor < bitlength) return 0;
-    cursor += bitlength; return 1;
+    if (bitsize + initial_cursor - cursor < bitlength) return 0;
+    cursor += bitlength; 
+    return 1;
+}
+int ZipBitStream::SkipToByte() {
+    if (cursor % 8) return SkipBit(8 - cursor%8);
+    else return 0;
+}
+void ZipBitStream::Reset() {
+    cursor = initial_cursor;
 }

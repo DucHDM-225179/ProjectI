@@ -13,6 +13,11 @@ extern int const _zip_errmsg_sz;
 
 extern uint32_t const crc32_tbl[];
 
+extern uint8_t const bit_reverse8_tbl[];
+uint8_t bit_reverse8(uint8_t b8);
+uint16_t bit_reverse16(uint16_t b16);
+uint32_t bit_reverse32(uint32_t b32);
+
 int CheckSize(std::vector<uint8_t> const& data, int start_offset, uint32_t sz);
 uint32_t GetUint32(std::vector<uint8_t> const& data, int& start_offset);
 uint16_t GetUint16(std::vector<uint8_t> const& data, int& start_offset);

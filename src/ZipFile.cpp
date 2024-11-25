@@ -1,6 +1,8 @@
 #include"ZipFile.h"
 
 #include"ZipUtil.h"
+#include"ZipDeflate.h"
+
 #include<stdexcept>
 #include<iostream>
 #include<fstream>
@@ -101,7 +103,7 @@ std::vector<std::string> ZipFile::GetFileList() const {
     return fileList;
 }
 std::vector<std::uint8_t> ZipFile::ExtractData(int file_index) const {
-    if (file_index >= localFiles.size()) return std::vector<std::uint8_t>(0);
+    if (file_index >= (int)localFiles.size()) return std::vector<std::uint8_t>(0);
     else if (file_index < 0) return std::vector<std::uint8_t>(0);
     else return ExtractData(localFiles[file_index]);
 }
@@ -127,5 +129,6 @@ std::vector<std::uint8_t> ExtractData_stored(std::vector<uint8_t> const& rawData
     return std::vector<std::uint8_t>(rawData.begin() + data_span.first, rawData.begin() + data_span.second);
 }
 std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span) {
-
+    ZipDeflate zdf(rawData, data_span.first, data_span.second);
+    return zdf.Decode();
 }

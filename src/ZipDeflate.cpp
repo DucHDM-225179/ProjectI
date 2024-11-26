@@ -117,10 +117,10 @@ int bitlen_code_order_tbl[] = {
     16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
 };
 
-void Decode_NonCompressed(std::vector<uint8_t>& decode_data, ZipBitStream& bitStream) {
-    bitStream.SkipToByte();
-    uint32_t b = bitStream.GetBit();
-    if (!bitStream.SkipBit(32)) {
+void Decode_NonCompressed(std::vector<uint8_t>& decode_data, ZipBitStreamInterface* bitStream) {
+    bitStream->SkipToByte();
+    uint32_t b = bitStream->GetBit();
+    if (!bitStream->SkipBit(32)) {
         throw std::length_error("ZipFile::ZipDeflate::Decode::NonCompressedBlock: Unexpected EOF");
     }
     uint32_t len = b & 0xFFFFU;
@@ -130,28 +130,28 @@ void Decode_NonCompressed(std::vector<uint8_t>& decode_data, ZipBitStream& bitSt
     }
     int len2 = len;
     for (; len2 >= 4; len2 -= 4) {
-        b = bitStream.GetBit();
+        b = bitStream->GetBit();
         decode_data.emplace_back(b       & 0xFF);
         decode_data.emplace_back((b>>8 ) & 0xFF);
         decode_data.emplace_back((b>>16) & 0xFF);
         decode_data.emplace_back((b>>24) & 0xFF);
-        if (!bitStream.SkipBit(32)) {
+        if (!bitStream->SkipBit(32)) {
             throw std::length_error("ZipFile::ZipDeflate::Decode::NonCompressedBlock: Unexpected EOF");
         }
     }
 
     for (; len2 > 0; len2 -= 1) {
-        b = bitStream.GetBit();
+        b = bitStream->GetBit();
         decode_data.emplace_back(b & 0xFF);
-        if (!bitStream.SkipBit(8)) {
+        if (!bitStream->SkipBit(8)) {
             throw std::length_error("ZipFile::ZipDeflate::Decode::NonCompressedBlock: Unexpected EOF");
         }
     }
 }
-void Decode_Huffman(std::vector<uint8_t>& decode_data, ZipBitStream& bitStream, HuffmanTree const& litTree, HuffmanTree const& disTree) {
+void Decode_Huffman(std::vector<uint8_t>& decode_data, ZipBitStreamInterface* bitStream, HuffmanTree const& litTree, HuffmanTree const& disTree) {
     int shouldStop = false;
     for (; !shouldStop;) {
-        uint32_t b = bitStream.GetBit();
+        uint32_t b = bitStream->GetBit();
         uint16_t decoded; int bit_used;
         try {
             std::tie(decoded, bit_used) = litTree.Decode(b);
@@ -165,13 +165,13 @@ void Decode_Huffman(std::vector<uint8_t>& decode_data, ZipBitStream& bitStream, 
         }
         else if (decoded == 256) { /* EOB */
             shouldStop = true;
-            if (!bitStream.SkipBit(bit_used)) {
+            if (!bitStream->SkipBit(bit_used)) {
                 throw std::length_error("ZipFile::ZipDeflate::Decode::Huffman: Unexpected EOF");
             }
         }
         else if (decoded < 256) {
             decode_data.emplace_back(decoded);
-            if (!bitStream.SkipBit(bit_used)) {
+            if (!bitStream->SkipBit(bit_used)) {
                 throw std::length_error("ZipFile::ZipDeflate::Decode::Huffman: Unexpected EOF");
             }
         }
@@ -183,11 +183,11 @@ void Decode_Huffman(std::vector<uint8_t>& decode_data, ZipBitStream& bitStream, 
             int len = baselen + (b & ((1U << extrabit) - 1));
             //b >>= extrabit;
 
-            if (!bitStream.SkipBit(bit_used)) {
+            if (!bitStream->SkipBit(bit_used)) {
                 throw std::length_error("ZipFile::ZipDeflate::Decode::Huffman: Unexpected EOF");
             }
 
-            b = bitStream.GetBit();
+            b = bitStream->GetBit();
             try {
                 std::tie(decoded, bit_used) = disTree.Decode(b);
             } catch (std::exception& e) {
@@ -205,7 +205,7 @@ void Decode_Huffman(std::vector<uint8_t>& decode_data, ZipBitStream& bitStream, 
                 int dist = basedist + (b & ((1U << extrabit) - 1));
                 //b >>= extrabit;
 
-                if (!bitStream.SkipBit(bit_used)) {
+                if (!bitStream->SkipBit(bit_used)) {
                     throw std::length_error("ZipFile::ZipDeflate::Decode::Huffman: Unexpected EOF");
                 }
                 if (dist > (int)decode_data.size()) {
@@ -223,12 +223,12 @@ void Decode_Huffman(std::vector<uint8_t>& decode_data, ZipBitStream& bitStream, 
 
 std::vector<uint8_t> ZipDeflate::Decode() {
     std::vector<uint8_t> decode_data;
-    bitStream.Reset();
+    bitStream->Reset();
 
     int shouldStop = false;
     for (; !shouldStop;) {
-        uint32_t b = bitStream.GetBit();
-        if (!bitStream.SkipBit(3)) {
+        uint32_t b = bitStream->GetBit();
+        if (!bitStream->SkipBit(3)) {
             throw std::length_error("ZipFile::ZipDeflate::Decode: Unexpected EOF");
         }
         uint32_t bfinal = b & 1;
@@ -250,21 +250,21 @@ std::vector<uint8_t> ZipDeflate::Decode() {
             } 
         } else if (block_type == 2) {
                 /* Construct huffman */
-                b = bitStream.GetBit();
+                b = bitStream->GetBit();
                 int num_lit = 257 + (b & 0b11111);
                 b >>= 5;
                 int num_dist = 1 + (b & 0b11111);
                 b >>= 5;
                 int num_len = 4 + (b & 0b1111);
                 b >>= 4;
-                if (!bitStream.SkipBit(5+5+4)) {
+                if (!bitStream->SkipBit(5+5+4)) {
                     throw std::length_error("ZipFile::ZipDeflate::Decode::DynamicHuffman: Unexpected EOF");
                 }
                 std::vector<int> bitlen_len(19, 0);
                 for (int i = 0; i < num_len; ++i) {
-                    b = bitStream.GetBit();
+                    b = bitStream->GetBit();
                     bitlen_len[bitlen_code_order_tbl[i]] = b & 0b111;
-                    if (!bitStream.SkipBit(3)) {
+                    if (!bitStream->SkipBit(3)) {
                         throw std::length_error("ZipFile::ZipDeflate::Decode::DynamicHuffman: Unexpected EOF");
                     }
                 }
@@ -272,7 +272,7 @@ std::vector<uint8_t> ZipDeflate::Decode() {
 
                 std::vector<int> codeFreq(num_lit + num_dist, 0);
                 for (int i = 0; i < num_lit + num_dist;) {
-                    b = bitStream.GetBit();
+                    b = bitStream->GetBit();
                     uint16_t cw; int bitused;
                     try {
                         std::tie(cw, bitused) = bitcodeTree.Decode(b);
@@ -298,7 +298,7 @@ std::vector<uint8_t> ZipDeflate::Decode() {
                     else {
                         throw std::invalid_argument("ZipFile::ZipDeflate::Decodee::DynamicHuffman: Unrecognized codelen code");
                     }
-                    if (!bitStream.SkipBit(bitused)) {
+                    if (!bitStream->SkipBit(bitused)) {
                         throw std::length_error("ZipFile::ZipDeflate::Decode::DynamicHuffman: Unexpected EOF");
                     }
                 }

@@ -18,7 +18,7 @@ int main(int argc, char const * const argv[]) {
         char const * const fn = argv[1];
         try {
             ZipFile zf(fn);
-            std::vector<uint8_t> data = zf.ExtractData(0);
+            std::vector<uint8_t> data = zf.ExtractDataWithPassword(0, "1234");
             for (uint8_t c: data) {
                 fprintf(stdout, "%c", c);
             }

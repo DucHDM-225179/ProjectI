@@ -96,6 +96,17 @@ std::pair<int,int> ZipLocalFile::GetData() const {
     return std::make_pair(data_start_offset, data_end_offset);
 }
 
+int ZipLocalFile::IsEncrypted() const {
+    return general_purpose_bitflag & 0b1;
+}
+
 uint16_t ZipLocalFile::GetCompressionMethod() const {
     return compression_method;
+}
+
+uint32_t ZipLocalFile::GetCrc32() const {
+    return crc32;
+}
+uint16_t ZipLocalFile::GetVersionNeeded() const {
+    return version_needed;
 }

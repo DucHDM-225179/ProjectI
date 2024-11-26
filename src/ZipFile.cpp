@@ -16,6 +16,8 @@ extern int const _zip_errmsg_sz;
 uint32_t ZIP_DIGITAL_SIGNATURE_HEADER = 0x05054b50;
 std::vector<std::uint8_t> ExtractData_stored(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span);
 std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span);
+std::vector<uint8_t> ExtractDataWithPassword_stored(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span, ZipPassword pwdKey);
+std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span, ZipPassword pwdKey);
 
 ZipFile::ZipFile(std::string filepath) {
     try {
@@ -108,6 +110,11 @@ std::vector<std::uint8_t> ZipFile::ExtractData(int file_index) const {
     else return ExtractData(localFiles[file_index]);
 }
 std::vector<std::uint8_t> ZipFile::ExtractData(ZipLocalFile const& zf) const{
+    if (zf.IsEncrypted()) {
+        fprintf(stderr, "ZipFile::ExtractData: File is encrypted, will return empty data; consider using ExtractDataWithPassword\n");
+        return std::vector<std::uint8_t>(0);
+    }
+
     uint16_t compression_method = zf.GetCompressionMethod();
     try {
         if (compression_method == 0) {
@@ -117,7 +124,7 @@ std::vector<std::uint8_t> ZipFile::ExtractData(ZipLocalFile const& zf) const{
             return ExtractData_deflate(rawData, zf.GetData());
         }
         else {
-            fprintf(stderr, "ZipFile::ExtractData::Unsupported compression method, will return empty data\n");
+            fprintf(stderr, "ZipFile::ExtractData: Unsupported compression method, will return empty data\n");
             return std::vector<std::uint8_t>(0);
         }
     } catch (std::exception const& e) {
@@ -130,5 +137,90 @@ std::vector<std::uint8_t> ExtractData_stored(std::vector<uint8_t> const& rawData
 }
 std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span) {
     ZipDeflate zdf(rawData, data_span.first, data_span.second);
+    return zdf.Decode();
+}
+
+std::vector<uint8_t> ZipFile::ExtractDataWithPassword(int file_index, std::string const& pwd) const {
+    if (file_index >= (int)localFiles.size()) return std::vector<std::uint8_t>(0);
+    else if (file_index < 0) return std::vector<std::uint8_t>(0);
+    else return ExtractDataWithPassword(localFiles[file_index], pwd);
+}
+
+std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, std::string const& pwd) const {
+    if (!zf.IsEncrypted()) {
+        fprintf(stderr, "ZipFile::ExtractDataWithPassword: File isn't encrypted, will return empty data; consider using ExtractData\n");
+        return std::vector<std::uint8_t>(0);
+    }
+    ZipPassword zpwd;
+    for (char c: pwd) zpwd.UpdateKey(c);
+    std::pair<int,int> data_span = zf.GetData();
+    if (data_span.second - data_span.first < 12) {
+        throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Invalid encrypted header");
+    }
+    uint8_t buf[12];
+    for (int i = 0; i < 12; ++i) {
+        uint8_t db = zpwd.DecryptByte();
+        buf[i] = rawData[i + data_span.first] ^ db;
+        zpwd.UpdateKey(buf[i]); 
+    }
+    
+    uint16_t ver = zf.GetVersionNeeded();
+    int major = ver / 10;
+    uint32_t crc_got, crc_check = zf.GetCrc32(); 
+    if (major < 2) { /* ZIP 1.x, use 2 byte */
+        crc_got = (buf[11] << 8) | buf[10];
+        crc_check >>= 16;
+    }
+    else { /* ZIP 2.0, use 1 byte */
+        crc_got = buf[11];
+        crc_check >>= 24;
+    }
+
+    if (crc_got != crc_check) {
+        throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Mismatch crc32 check, maybe wrong password");
+    }
+    data_span.first += 12;
+
+
+    uint16_t compression_method = zf.GetCompressionMethod();
+    try {
+        uint32_t crc32 = zf.GetCrc32();
+        std::vector<uint8_t> decode_data;
+        if (compression_method == 0) {
+            decode_data = ExtractDataWithPassword_stored(rawData, data_span, zpwd);
+        }
+        else if (compression_method == 8) {
+            decode_data = ExtractDataWithPassword_deflate(rawData, data_span, zpwd);
+        }
+        else {
+            throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Unsupported compression method, will return empty data\n");
+        }
+
+        if (crc32_compute(decode_data) != crc32) {
+            throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Mismatch crc32 check, maybe wrong password");
+        }
+        return decode_data;
+    } catch (std::exception const& e) {
+        throw;
+    }
+}
+
+std::vector<uint8_t> ExtractDataWithPassword_stored(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span, ZipPassword pwdKey) {
+    std::vector<uint8_t> decode_data;
+    for (int i = data_span.first; i < data_span.second; ++i) {
+        uint8_t nb = pwdKey.DecryptByte() ^ rawData[i];
+        pwdKey.UpdateKey(nb);
+        decode_data.emplace_back(nb);
+    }
+    return decode_data;
+}
+
+std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span, ZipPassword pwdKey) {
+    //std::vector<uint8_t> data2;
+    //for (int i = data_span.first; i < data_span.second; ++i) {
+    //    data2.emplace_back(rawData[i] ^ pwdKey.DecryptByte());
+    //    pwdKey.UpdateKey(data2.back());
+    //}
+    ZipDeflate zdf(rawData, data_span.first, data_span.second, pwdKey);
     return zdf.Decode();
 }

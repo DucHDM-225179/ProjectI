@@ -13,7 +13,7 @@ public:
     ZipEndOfCentralDirectoryRecord(std::vector<uint8_t> const& data, int& _start_offset);
     std::pair<int,int> GetDotZipFileComment() const;
 
-private:
+protected:
     uint16_t number_of_this_disk;
     uint16_t number_of_the_disk_with_the_start_of_the_central_directory;
     uint16_t total_number_of_entries_in_the_central_directory_on_this_disk;

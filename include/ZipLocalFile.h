@@ -15,9 +15,12 @@ public:
     std::pair<int,int> GetFileName() const;
     std::pair<int,int> GetExtraField() const;
     std::pair<int,int> GetData() const;
+    int IsEncrypted() const;
     uint16_t GetCompressionMethod() const;
+    uint32_t GetCrc32() const;
+    uint16_t GetVersionNeeded() const;
 
-private:
+protected:
     uint16_t version_needed;
     uint16_t general_purpose_bitflag;
     uint16_t compression_method;

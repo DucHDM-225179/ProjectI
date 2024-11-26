@@ -13,7 +13,7 @@ public:
     std::pair<int,int> GetFileName() const;
     std::pair<int,int> GetExtraField() const;
     std::pair<int,int> GetFileComment() const;
-private:
+protected:
     uint16_t version_made_by;
     uint16_t version_needed_to_extract;
     uint16_t general_purpose_bit_flag;

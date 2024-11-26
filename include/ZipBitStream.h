@@ -8,6 +8,7 @@
 class ZipBitStreamInterface {
 public:
     ZipBitStreamInterface() {}
+    virtual ~ZipBitStreamInterface() {}
     ZipBitStreamInterface(std::vector<uint8_t> const& d) {}
     ZipBitStreamInterface(std::vector<uint8_t> const& d, int start_byte_offset, int end_byte_offset) {}
     ZipBitStreamInterface(std::vector<uint8_t> const& d, int start_byte_offset, int end_byte_offset, ZipPassword key) {}

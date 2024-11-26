@@ -8,6 +8,10 @@
 #include<fstream>
 #include<utility>
 #include<iterator>
+#include<thread>
+#include<mutex>
+#include<atomic>
+#include <chrono>
 
 int const SIZE_LIMIT = 128 * 1024 * 1024; // MB
 extern char _zip_errmsg[];
@@ -137,7 +141,11 @@ std::vector<std::uint8_t> ExtractData_stored(std::vector<uint8_t> const& rawData
 }
 std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span) {
     ZipDeflate zdf(rawData, data_span.first, data_span.second);
-    return zdf.Decode();
+    try {
+        return zdf.Decode();
+    } catch (std::exception& e) {
+        throw;
+    }
 }
 
 std::vector<uint8_t> ZipFile::ExtractDataWithPassword(int file_index, std::string const& pwd) const {
@@ -153,6 +161,10 @@ std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, st
     }
     ZipPassword zpwd;
     for (char c: pwd) zpwd.UpdateKey(c);
+    return ExtractDataWithPassword(zf, zpwd);
+}
+
+std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, ZipPassword zpwd) const {
     std::pair<int,int> data_span = zf.GetData();
     if (data_span.second - data_span.first < 12) {
         throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Invalid encrypted header");
@@ -216,11 +228,80 @@ std::vector<uint8_t> ExtractDataWithPassword_stored(std::vector<uint8_t> const& 
 }
 
 std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span, ZipPassword pwdKey) {
-    //std::vector<uint8_t> data2;
-    //for (int i = data_span.first; i < data_span.second; ++i) {
-    //    data2.emplace_back(rawData[i] ^ pwdKey.DecryptByte());
-    //    pwdKey.UpdateKey(data2.back());
-    //}
     ZipDeflate zdf(rawData, data_span.first, data_span.second, pwdKey);
-    return zdf.Decode();
+    try {
+        return zdf.Decode();
+    } catch (std::exception& e) {
+        throw;
+    }
+}
+
+void ZipFile::BruteForceFile(int file_index, std::vector<std::vector<std::string>> const& Dict, int jobs) const {
+    if (jobs < 1) {
+        throw std::invalid_argument("Invalid number of threads");
+    }
+    if (jobs > (int)std::thread::hardware_concurrency()) {
+        throw std::invalid_argument("Too many threads");
+    }
+    if (file_index < 0 || file_index >= (int)localFiles.size()) {
+        throw std::invalid_argument("Invalid file index");
+    }
+    BruteForceFile(localFiles[file_index], Dict, jobs);
+}
+void ZipFile::BruteForceFile(ZipLocalFile const& zf, std::vector<std::vector<std::string>> const& Dict, int jobs) const {
+    if (!zf.IsEncrypted()) {
+        fprintf(stderr, "File is not encrypted, no need to brute-forcing...\n");
+        return;
+    }
+    
+    unsigned long long const LIMIT = 4e12; /* 64-bit on C++11 */
+    unsigned long long num_jobs = 1;
+    for (auto const& x: Dict) {
+        if (num_jobs > LIMIT / x.size()) {
+            throw std::invalid_argument("Too many password to bruteforce, consider limiting Dictionary entries");
+        }
+        num_jobs = num_jobs * x.size();
+    }
+
+    unsigned long long const total_job = num_jobs;
+    int const Dict_sz = Dict.size();
+    std::vector<unsigned long long> Base(Dict_sz, 1);
+    for (int i = Dict_sz - 2; ~i; --i) Base[i] = Dict[i+1].size() * Base[i+1];
+
+    std::atomic<unsigned long long> job_cnt = 0;
+    std::mutex cout_mutex;
+    auto thread_job = [&]() {
+        unsigned long long job_idx, job_idx2;
+        std::vector<int> w_idx(Dict.size());
+        ZipPassword zpwd;
+        for (;;) {
+            job_idx = job_idx2 = job_cnt++;
+            if (job_idx >= total_job) break;
+            zpwd = ZipPassword();
+            for (int i = 0; i < Dict_sz; ++i) {
+                w_idx[i] = job_idx / Base[i];
+                job_idx -= Base[i] * w_idx[i];
+                for (auto& x: Dict[i][w_idx[i]]) zpwd.UpdateKey(x);
+            }
+            try {
+                ExtractDataWithPassword(zf, zpwd);
+            }
+            catch (std::exception& e) {
+                continue;
+            }
+
+            std::lock_guard<std::mutex> guard(cout_mutex);
+            std::cout << "Possible password: ";
+            for (int i = 0; i < Dict_sz; ++i) std::cout << Dict[i][w_idx[i]];
+            std::cout << std::endl;
+        }
+    };
+
+    std::vector<std::thread> vThread(jobs);
+    for (int i = 0; i < jobs; ++i) {
+        vThread[i] = std::thread(thread_job);
+    }
+    for (int i = 0; i < jobs; ++i) {
+        vThread[i].join();
+    }
 }

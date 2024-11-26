@@ -110,3 +110,7 @@ uint32_t ZipLocalFile::GetCrc32() const {
 uint16_t ZipLocalFile::GetVersionNeeded() const {
     return version_needed;
 }
+
+uint16_t ZipLocalFile::GetUncompressedSize() const {
+    return uncompressed_size;
+}

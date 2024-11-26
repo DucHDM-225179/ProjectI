@@ -117,7 +117,18 @@ int bitlen_code_order_tbl[] = {
     16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
 };
 
-void Decode_NonCompressed(std::vector<uint8_t>& decode_data, ZipBitStreamInterface* bitStream) {
+struct DecodeWrapper {
+    std::vector<uint8_t> decode_data;
+    std::vector<int> bitlen_len;
+    std::vector<int> codeFreq;
+
+    DecodeWrapper() : decode_data(0), bitlen_len(25, 0), codeFreq(500, 0) {}
+    void Decode_NonCompressed(std::unique_ptr<ZipBitStreamInterface>& bitStream);
+    void Decode_Huffman(std::unique_ptr<ZipBitStreamInterface>& bitStream, HuffmanTree const& litTree, HuffmanTree const& disTree);
+    std::vector<uint8_t> Decode(std::unique_ptr<ZipBitStreamInterface>& bitStream);
+};
+
+void DecodeWrapper::Decode_NonCompressed(std::unique_ptr<ZipBitStreamInterface>& bitStream) {
     bitStream->SkipToByte();
     uint32_t b = bitStream->GetBit();
     if (!bitStream->SkipBit(32)) {
@@ -148,20 +159,20 @@ void Decode_NonCompressed(std::vector<uint8_t>& decode_data, ZipBitStreamInterfa
         }
     }
 }
-void Decode_Huffman(std::vector<uint8_t>& decode_data, ZipBitStreamInterface* bitStream, HuffmanTree const& litTree, HuffmanTree const& disTree) {
+void DecodeWrapper::Decode_Huffman(std::unique_ptr<ZipBitStreamInterface>& bitStream, HuffmanTree const& litTree, HuffmanTree const& disTree) {
     int shouldStop = false;
     for (; !shouldStop;) {
         uint32_t b = bitStream->GetBit();
         uint16_t decoded; int bit_used;
+
         try {
             std::tie(decoded, bit_used) = litTree.Decode(b);
         } catch (std::exception& e) {
             throw;
         }
 
-
         if (decoded < 0 || decoded > 285) {
-            throw std::invalid_argument("ZipFile::ZipDeflate::Decodee::Huffman: Unrecognized literal code");
+            throw std::invalid_argument("ZipFile::ZipDeflate::Decode::Huffman: Unrecognized literal code");
         }
         else if (decoded == 256) { /* EOB */
             shouldStop = true;
@@ -220,11 +231,9 @@ void Decode_Huffman(std::vector<uint8_t>& decode_data, ZipBitStreamInterface* bi
         }
     }
 }
-
-std::vector<uint8_t> ZipDeflate::Decode() {
-    std::vector<uint8_t> decode_data;
+std::vector<uint8_t> DecodeWrapper::Decode(std::unique_ptr<ZipBitStreamInterface>& bitStream) {
+    decode_data.clear();
     bitStream->Reset();
-
     int shouldStop = false;
     for (; !shouldStop;) {
         uint32_t b = bitStream->GetBit();
@@ -236,14 +245,14 @@ std::vector<uint8_t> ZipDeflate::Decode() {
         uint32_t block_type = b&0b11U;
         if (block_type == 0) {
             try {
-                Decode_NonCompressed(decode_data, bitStream);
+                Decode_NonCompressed(bitStream);
             }
             catch (std::exception const& e) {
                 throw;
             }
         } else if (block_type == 1) {
             try {
-                Decode_Huffman(decode_data, bitStream, fixedLiteralTree, fixedDistanceTree);
+                Decode_Huffman(bitStream, fixedLiteralTree, fixedDistanceTree);
             }
             catch (std::exception const& e) {
                 throw;
@@ -260,7 +269,6 @@ std::vector<uint8_t> ZipDeflate::Decode() {
                 if (!bitStream->SkipBit(5+5+4)) {
                     throw std::length_error("ZipFile::ZipDeflate::Decode::DynamicHuffman: Unexpected EOF");
                 }
-                std::vector<int> bitlen_len(19, 0);
                 for (int i = 0; i < num_len; ++i) {
                     b = bitStream->GetBit();
                     bitlen_len[bitlen_code_order_tbl[i]] = b & 0b111;
@@ -269,8 +277,6 @@ std::vector<uint8_t> ZipDeflate::Decode() {
                     }
                 }
                 HuffmanTree bitcodeTree(bitlen_len);
-
-                std::vector<int> codeFreq(num_lit + num_dist, 0);
                 for (int i = 0; i < num_lit + num_dist;) {
                     b = bitStream->GetBit();
                     uint16_t cw; int bitused;
@@ -304,20 +310,26 @@ std::vector<uint8_t> ZipDeflate::Decode() {
                 }
 
                 HuffmanTree litTree(codeFreq.begin(), codeFreq.begin() + num_lit);
-                HuffmanTree disTree(codeFreq.begin() + num_lit, codeFreq.end());
+                HuffmanTree disTree(codeFreq.begin() + num_lit, codeFreq.begin() + num_lit + num_dist);
 
                 try {
-                    Decode_Huffman(decode_data, bitStream, litTree, disTree);
+                    Decode_Huffman(bitStream, litTree, disTree);
                 } catch (std::exception const& e) {
                     throw;
                 }
         } else {
             throw std::invalid_argument("ZipFile::ZipDeflate::Decode: Unrecognized deflate block type");
         }
-
         shouldStop = bfinal;
     }
-
-
     return decode_data;
+}
+
+std::vector<uint8_t> ZipDeflate::Decode() {
+    DecodeWrapper wrapper;
+    try {
+        return wrapper.Decode(bitStream);
+    } catch(std::exception& e) {
+        throw;
+    }
 }

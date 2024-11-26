@@ -19,6 +19,7 @@ public:
     uint16_t GetCompressionMethod() const;
     uint32_t GetCrc32() const;
     uint16_t GetVersionNeeded() const;
+    uint16_t GetUncompressedSize() const;
 
 protected:
     uint16_t version_needed;

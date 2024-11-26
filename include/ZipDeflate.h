@@ -5,24 +5,22 @@
 
 #include<cstdint>
 #include<vector>
+#include<memory>
 
 class ZipDeflate {
 public:
     ZipDeflate(std::vector<uint8_t> const& data) {
-        bitStream = new ZipBitStream(data);
+        bitStream = std::unique_ptr<ZipBitStreamInterface>(new ZipBitStream(data));
     }
     ZipDeflate(std::vector<uint8_t> const& data, int _start_offset, int _end_offset) {
-        bitStream = new ZipBitStream(data, _start_offset, _end_offset);
+        bitStream = std::unique_ptr<ZipBitStreamInterface>(new ZipBitStream(data, _start_offset, _end_offset));
     }
     ZipDeflate(std::vector<uint8_t> const& data, int _start_offset, int _end_offset, ZipPassword initKey) {
-        bitStream = new ZipBitStreamEncrypted(data, _start_offset, _end_offset, initKey);
-    }
-    ~ZipDeflate() {
-        delete bitStream;
+        bitStream = std::unique_ptr<ZipBitStreamInterface>(new ZipBitStreamEncrypted(data, _start_offset, _end_offset, initKey));
     }
     std::vector<uint8_t> Decode();
 protected:
-    ZipBitStreamInterface *bitStream;
+    std::unique_ptr<ZipBitStreamInterface> bitStream;
 };
 
 #endif // ZIP_DEFLATE_H_

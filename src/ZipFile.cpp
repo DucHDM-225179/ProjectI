@@ -279,7 +279,6 @@ void ZipFile::BruteForceFile(int file_index, std::vector<std::vector<std::string
     BruteForceFile(localFiles[file_index], Dict, jobs);
 }
 
-#include<cassert>
 void ZipFile::BruteForceFile(ZipLocalFile const& zf, std::vector<std::vector<std::string>> const& Dict, int jobs) const {
     if (!zf.IsEncrypted()) {
         fprintf(stderr, "File is not encrypted, no need to brute-forcing...\n");

@@ -11,7 +11,7 @@
 
 extern uint32_t ZIP_DIGITAL_SIGNATURE_HEADER;
 
-
+//ZipFile: Class chứa thông tin file Zip
 class ZipFile {
 public:
     ZipFile(std::string filepath);

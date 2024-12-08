@@ -5,6 +5,8 @@
 #include<cstdint>
 #include"ZipUtil.h"
 
+// Class xử lý truyền dòng Bit
+// Sử dụng một dạng Interface vì ta muốn xử lý online với dòng bit được mã hoá
 class ZipBitStreamInterface {
 public:
     ZipBitStreamInterface() {}
@@ -18,6 +20,7 @@ public:
     virtual void Reset() = 0;
 };
 
+// Xử lý truyền dòng Bit với file không mã hoá
 class ZipBitStream : public ZipBitStreamInterface {
 public:
     ZipBitStream() : data(std::vector<uint8_t>(0)), bitsize(0), initial_cursor(0), cursor(0) {}
@@ -37,6 +40,7 @@ protected:
     int cursor;
 };
 
+// Xử lý truyền dòng bit với file mã hoá
 class ZipBitStreamEncrypted : public ZipBitStream {
 public:
     ZipBitStreamEncrypted() : ZipBitStream(), initKey(ZipPassword()) {
@@ -59,7 +63,7 @@ public:
 protected:
     ZipPassword const initKey;
     ZipPassword pwdKey;
-    uint8_t zpwd[8]; // must be power of 2 for bit tricks
+    uint8_t zpwd[8]; // phải là số dạng mũ 2 để có thể tính mod xoay vòng bằng phép toán AND
     int const zpwd_sz = sizeof(zpwd) / sizeof(zpwd[0]);
     int const zpwd_modulo = zpwd_sz - 1;
     void setup_initial_key();

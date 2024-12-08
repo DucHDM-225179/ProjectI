@@ -14,6 +14,7 @@
 #include<tuple>
 #include<algorithm>
 
+// Đặt giới hạn là 128MB để tránh trường hợp thiếu RAM, cũng như không phải xử lý các trường hợp số lớn hay số gần số lớn, tràn số, ...
 int const SIZE_LIMIT = 128 * 1024 * 1024; // MB
 extern char _zip_errmsg[];
 extern int const _zip_errmsg_sz;
@@ -24,6 +25,10 @@ std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawDat
 std::vector<uint8_t> ExtractDataWithPassword_stored(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span, ZipPassword pwdKey);
 std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span, ZipPassword pwdKey);
 
+/*
+Khởi tạo file Zip, đọc dữ liệu
+Sắp xếp lại các file trong file Zip theo tên
+*/
 ZipFile::ZipFile(std::string filepath) {
     try {
         std::ifstream fn(filepath, std::ios::binary);
@@ -120,6 +125,7 @@ ZipFile::ZipFile(std::string filepath) {
     });
 }
 
+/* Trả về danh sách các file có dữ liệu trong file Zip */
 std::vector<std::string> ZipFile::GetFileList() const {
     std::vector<std::string> fileList = std::vector<std::string>();
     for (ZipLocalFile const& zf: localFiles) {
@@ -133,6 +139,8 @@ std::vector<std::string> ZipFile::GetFileList() const {
     }
     return fileList;
 }
+
+// Lấy dữ liệu của file
 std::vector<std::uint8_t> ZipFile::ExtractData(int file_index) const {
     if (file_index >= (int)localFiles.size())  {
         throw std::invalid_argument("ZipFile::ExtractData: Invalid file index\n");
@@ -175,6 +183,7 @@ std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawDat
     }
 }
 
+// Lấy dữ liệu của file có password, std::string chỉ dùng để chứa password, hoàn toàn có thể là một xâu nhị phân chứ không nhất thiết là một xâu đọc được
 std::vector<uint8_t> ZipFile::ExtractDataWithPassword(int file_index, std::string const& pwd) const {
     if (file_index >= (int)localFiles.size()) {
         throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Invalid file index\n");
@@ -266,6 +275,7 @@ std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const&
     }
 }
 
+// Tấn công từ điển để dò ra mật khẩu
 void ZipFile::BruteForceFile(int file_index, std::vector<std::vector<std::string>> const& Dict, int jobs) const {
     if (jobs < 1) {
         throw std::invalid_argument("Invalid number of threads");

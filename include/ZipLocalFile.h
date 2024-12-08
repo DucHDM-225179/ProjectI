@@ -9,6 +9,7 @@
 extern uint32_t const ZIP_LOCAL_FILE_HEADER_SIGNATURE;
 extern uint32_t const ZIP_LOCAL_FILE_HEADER_DATA_DESCRIPTOR_SIGNATURE;
 
+// Class chứa thông tin local file trong file zip 
 class ZipLocalFile {
 public:
     ZipLocalFile(std::vector<uint8_t> const& data, int& _start_offset);

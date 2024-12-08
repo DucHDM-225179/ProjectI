@@ -1,3 +1,5 @@
+// ziptool.cpp: CLI hỗ trợ liệt kê các file trong file zip, giải nén 1 file zip ra stdout, hoặc tấn công từ điển vào 1 file trong file zip
+
 #include<iostream>
 #include<fstream>
 #include<sstream>

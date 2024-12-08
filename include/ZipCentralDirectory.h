@@ -7,6 +7,7 @@
 
 extern uint32_t const ZIP_CENTRAL_FILE_HEADER_SIGNATURE;
 
+// Class chứa thông tin Central Directory
 class ZipCentralDirectory {
 public:
     ZipCentralDirectory(std::vector<uint8_t> const& data, int& _start_offset);

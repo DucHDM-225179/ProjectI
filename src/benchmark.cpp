@@ -1,3 +1,5 @@
+//benchmark.cpp: Một file để đo tốc độ tấn công từ điển khi sử dụng 1 thread so với khi sử dụng tất cả các thread có thể
+
 #include<iostream>
 #include<fstream>
 #include<sstream>

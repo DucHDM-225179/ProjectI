@@ -11,13 +11,16 @@ int version_supported(uint16_t version_needed);
 extern char _zip_errmsg[];
 extern int const _zip_errmsg_sz;
 
+// Bảng tính nhanh crc32
 extern uint32_t const crc32_tbl[];
 
+// Bảng tính nhanh số lật ngược bit của một số 8 bit (0b11011001 -> 0b10011011)
 extern uint8_t const bit_reverse8_tbl[];
 uint8_t bit_reverse8(uint8_t b8);
 uint16_t bit_reverse16(uint16_t b16);
 uint32_t bit_reverse32(uint32_t b32);
 
+// Class hỗ trợ để xử lý zip password trong ZipPK Traditional Encryption 
 struct ZipPassword {
 public:
     ZipPassword() : k{0x12345678, 0x23456789, 0x34567890} {}

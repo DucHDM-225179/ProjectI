@@ -7,6 +7,7 @@
 #include<vector>
 #include<memory>
 
+// Class xử lý giải nén dòng bit Deflate
 class ZipDeflate {
 public:
     ZipDeflate(std::vector<uint8_t> const& data) {

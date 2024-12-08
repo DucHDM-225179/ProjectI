@@ -7,6 +7,7 @@
 
 extern uint32_t ZIP_END_OF_CENTRAL_DIRECTORY_RECORD_SIGNATURE;
 
+// Class chứ thông tin End Of Central Directory Record
 class ZipEndOfCentralDirectoryRecord {
 public:
     ZipEndOfCentralDirectoryRecord();

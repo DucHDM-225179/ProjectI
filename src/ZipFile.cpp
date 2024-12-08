@@ -11,7 +11,8 @@
 #include<thread>
 #include<mutex>
 #include<atomic>
-#include <chrono>
+#include<tuple>
+#include<algorithm>
 
 int const SIZE_LIMIT = 128 * 1024 * 1024; // MB
 extern char _zip_errmsg[];
@@ -26,6 +27,10 @@ std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const&
 ZipFile::ZipFile(std::string filepath) {
     try {
         std::ifstream fn(filepath, std::ios::binary);
+        if (fn.fail()) {
+            snprintf(_zip_errmsg, _zip_errmsg_sz, "cannot open file %s", filepath.c_str());
+            throw std::invalid_argument(_zip_errmsg);
+        }
         fn.unsetf(std::ios::skipws);
         std::streampos fsize;
         fn.seekg(0, std::ios::end);
@@ -49,12 +54,13 @@ ZipFile::ZipFile(std::string filepath) {
     centralDirectories = std::vector<ZipCentralDirectory>();
     digital_signature_data_start_offset = digital_signature_data_end_offset = -1;
 
+    std::vector<ZipLocalFile> _localFiles;
     for (int curpos = 0; curpos < (int)rawData.size();) {
         uint32_t header = GetUint32(rawData, curpos);
         curpos -= 4; //unget
         if (header == ZIP_LOCAL_FILE_HEADER_SIGNATURE) {
             try {
-                localFiles.emplace_back(ZipLocalFile(rawData, curpos));
+                _localFiles.emplace_back(ZipLocalFile(rawData, curpos));
             } catch (std::exception const &e) {
                 throw;
             }
@@ -93,6 +99,25 @@ ZipFile::ZipFile(std::string filepath) {
             throw std::invalid_argument("ZipFile::Constructor: Unrecognized header, might belong to a proprietary zip format");
         }
     }
+
+    // Lọc các file có độ lớn là 0 (các folder)
+    std::copy_if(_localFiles.begin(), _localFiles.end(), std::back_inserter(localFiles), 
+        [&](const ZipLocalFile& zf) {
+            return zf.GetUncompressedSize() > 0;
+        });
+
+    // Sắp xếp lại các file theo tên (chỉ sắp xếp theo giá trị ascii, tức tên unicode có thể sẽ không theo thứ tự alphabet, nhưng luôn đảm bảo tính stable)
+    std::stable_sort(localFiles.begin(), localFiles.end(), [&](const ZipLocalFile& a, const ZipLocalFile& b) {
+        int nas, nae, nbs, nbe;
+        std::tie(nas, nae) = a.GetFileName();
+        std::tie(nbs, nbe) = a.GetFileName();
+        for (int i = 0; i < std::min(nae-nas, nbe-nbs); ++i) {
+            if (rawData[nas+i] != rawData[nbs+i]) {
+                return rawData[nas+i] < rawData[nbs+i];
+            }
+        }
+        return nae-nas < nbe-nbs;
+    });
 }
 
 std::vector<std::string> ZipFile::GetFileList() const {
@@ -109,14 +134,17 @@ std::vector<std::string> ZipFile::GetFileList() const {
     return fileList;
 }
 std::vector<std::uint8_t> ZipFile::ExtractData(int file_index) const {
-    if (file_index >= (int)localFiles.size()) return std::vector<std::uint8_t>(0);
-    else if (file_index < 0) return std::vector<std::uint8_t>(0);
+    if (file_index >= (int)localFiles.size())  {
+        throw std::invalid_argument("ZipFile::ExtractData: Invalid file index\n");
+    }
+    else if (file_index < 0)  {
+        throw std::invalid_argument("ZipFile::ExtractData: Invalid file index\n");
+    }
     else return ExtractData(localFiles[file_index]);
 }
 std::vector<std::uint8_t> ZipFile::ExtractData(ZipLocalFile const& zf) const{
     if (zf.IsEncrypted()) {
-        fprintf(stderr, "ZipFile::ExtractData: File is encrypted, will return empty data; consider using ExtractDataWithPassword\n");
-        return std::vector<std::uint8_t>(0);
+        throw std::invalid_argument("ZipFile::ExtractData: File is encrypted; consider using ExtractDataWithPassword\n");
     }
 
     uint16_t compression_method = zf.GetCompressionMethod();
@@ -128,8 +156,7 @@ std::vector<std::uint8_t> ZipFile::ExtractData(ZipLocalFile const& zf) const{
             return ExtractData_deflate(rawData, zf.GetData());
         }
         else {
-            fprintf(stderr, "ZipFile::ExtractData: Unsupported compression method, will return empty data\n");
-            return std::vector<std::uint8_t>(0);
+            throw std::invalid_argument("ZipFile::ExtractData: Unsupported compression method\n");
         }
     } catch (std::exception const& e) {
         throw;
@@ -149,15 +176,18 @@ std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawDat
 }
 
 std::vector<uint8_t> ZipFile::ExtractDataWithPassword(int file_index, std::string const& pwd) const {
-    if (file_index >= (int)localFiles.size()) return std::vector<std::uint8_t>(0);
-    else if (file_index < 0) return std::vector<std::uint8_t>(0);
+    if (file_index >= (int)localFiles.size()) {
+        throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Invalid file index\n");
+    }
+    else if (file_index < 0) {
+        throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Invalid file index\n");
+    }
     else return ExtractDataWithPassword(localFiles[file_index], pwd);
 }
 
 std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, std::string const& pwd) const {
     if (!zf.IsEncrypted()) {
-        fprintf(stderr, "ZipFile::ExtractDataWithPassword: File isn't encrypted, will return empty data; consider using ExtractData\n");
-        return std::vector<std::uint8_t>(0);
+        throw std::invalid_argument("ZipFile::ExtractDataWithPassword: File isn't encrypted; consider using ExtractData\n");
     }
     ZipPassword zpwd;
     for (char c: pwd) zpwd.UpdateKey(c);
@@ -205,7 +235,7 @@ std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, Zi
             decode_data = ExtractDataWithPassword_deflate(rawData, data_span, zpwd);
         }
         else {
-            throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Unsupported compression method, will return empty data\n");
+            throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Unsupported compression method\n");
         }
 
         if (crc32_compute(decode_data) != crc32) {
@@ -248,6 +278,8 @@ void ZipFile::BruteForceFile(int file_index, std::vector<std::vector<std::string
     }
     BruteForceFile(localFiles[file_index], Dict, jobs);
 }
+
+#include<cassert>
 void ZipFile::BruteForceFile(ZipLocalFile const& zf, std::vector<std::vector<std::string>> const& Dict, int jobs) const {
     if (!zf.IsEncrypted()) {
         fprintf(stderr, "File is not encrypted, no need to brute-forcing...\n");
@@ -268,7 +300,7 @@ void ZipFile::BruteForceFile(ZipLocalFile const& zf, std::vector<std::vector<std
     std::vector<unsigned long long> Base(Dict_sz, 1);
     for (int i = Dict_sz - 2; ~i; --i) Base[i] = Dict[i+1].size() * Base[i+1];
 
-    std::atomic<unsigned long long> job_cnt = 0;
+    std::atomic<unsigned long long> job_cnt(0);
     std::mutex cout_mutex;
     auto thread_job = [&]() {
         unsigned long long job_idx, job_idx2;
@@ -283,13 +315,13 @@ void ZipFile::BruteForceFile(ZipLocalFile const& zf, std::vector<std::vector<std
                 job_idx -= Base[i] * w_idx[i];
                 for (auto& x: Dict[i][w_idx[i]]) zpwd.UpdateKey(x);
             }
+
             try {
                 ExtractDataWithPassword(zf, zpwd);
             }
             catch (std::exception& e) {
                 continue;
             }
-
             std::lock_guard<std::mutex> guard(cout_mutex);
             std::cout << "Possible password: ";
             for (int i = 0; i < Dict_sz; ++i) std::cout << Dict[i][w_idx[i]];

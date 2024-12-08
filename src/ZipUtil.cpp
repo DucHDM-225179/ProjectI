@@ -37,7 +37,7 @@ uint16_t GetUint16(std::vector<uint8_t> const& data, int& start_offset) {
 }
 uint8_t GetUint8(std::vector<uint8_t> const& data, int& start_offset) {
     int u = start_offset;
-    uint16_t z = 0;
+    uint8_t z = 0;
     z |= data[u];
     start_offset = u+1;
     return z;

@@ -3,6 +3,9 @@
 
 #include<stdexcept>
 #include<utility>
+#include<tuple>
+
+#include<cassert>
 
 struct HuffmanTree {
     struct {
@@ -45,7 +48,7 @@ struct HuffmanTree {
         int i = 0;
         for (auto it = start; it != end; ++i, ++it) {
             int len = *it;
-            if (len == 0) continue;
+            if (len == 0) continue; 
             symbols[sym[len]++] = (uint16_t)i;
             if (len <= 8) {
                 uint16_t cw = first_code[len]++;
@@ -243,6 +246,7 @@ std::vector<uint8_t> DecodeWrapper::Decode(std::unique_ptr<ZipBitStreamInterface
         uint32_t bfinal = b & 1;
         b >>= 1;
         uint32_t block_type = b&0b11U;
+        
         if (block_type == 0) {
             try {
                 Decode_NonCompressed(bitStream);
@@ -290,6 +294,10 @@ std::vector<uint8_t> DecodeWrapper::Decode(std::unique_ptr<ZipBitStreamInterface
                         codeFreq[i++] = cw;
                     }
                     else if (cw == 16) {
+                        if (i == 0) {
+                            // không bao giờ i=0 trong dữ liệu đúng, báo lỗi
+                            throw std::invalid_argument("ZipFile::ZipDeflate::Decode::DynamicHuffman: Invalid data, data may have been corrupted");
+                        }
                         for (int tcopy = 3 + (b&0b11), prv = codeFreq[i-1]; tcopy; --tcopy) codeFreq[i++] = prv;
                         bitused += 2;
                     }
@@ -302,7 +310,7 @@ std::vector<uint8_t> DecodeWrapper::Decode(std::unique_ptr<ZipBitStreamInterface
                         bitused += 7;
                     }
                     else {
-                        throw std::invalid_argument("ZipFile::ZipDeflate::Decodee::DynamicHuffman: Unrecognized codelen code");
+                        throw std::invalid_argument("ZipFile::ZipDeflate::Decode::DynamicHuffman: Unrecognized codelen code");
                     }
                     if (!bitStream->SkipBit(bitused)) {
                         throw std::length_error("ZipFile::ZipDeflate::Decode::DynamicHuffman: Unexpected EOF");

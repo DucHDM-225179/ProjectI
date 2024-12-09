@@ -143,16 +143,16 @@ std::vector<std::string> ZipFile::GetFileList() const {
 // Lấy dữ liệu của file
 std::vector<std::uint8_t> ZipFile::ExtractData(int file_index) const {
     if (file_index >= (int)localFiles.size())  {
-        throw std::invalid_argument("ZipFile::ExtractData: Invalid file index\n");
+        throw std::invalid_argument("ZipFile::ExtractData: Invalid file index");
     }
     else if (file_index < 0)  {
-        throw std::invalid_argument("ZipFile::ExtractData: Invalid file index\n");
+        throw std::invalid_argument("ZipFile::ExtractData: Invalid file index");
     }
     else return ExtractData(localFiles[file_index]);
 }
 std::vector<std::uint8_t> ZipFile::ExtractData(ZipLocalFile const& zf) const{
     if (zf.IsEncrypted()) {
-        throw std::invalid_argument("ZipFile::ExtractData: File is encrypted; consider using ExtractDataWithPassword\n");
+        throw std::invalid_argument("ZipFile::ExtractData: File is encrypted; consider using ExtractDataWithPassword");
     }
 
     uint16_t compression_method = zf.GetCompressionMethod();
@@ -164,7 +164,7 @@ std::vector<std::uint8_t> ZipFile::ExtractData(ZipLocalFile const& zf) const{
             return ExtractData_deflate(rawData, zf.GetData());
         }
         else {
-            throw std::invalid_argument("ZipFile::ExtractData: Unsupported compression method\n");
+            throw std::invalid_argument("ZipFile::ExtractData: Unsupported compression method");
         }
     } catch (std::exception const& e) {
         throw;
@@ -186,17 +186,17 @@ std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawDat
 // Lấy dữ liệu của file có password, std::string chỉ dùng để chứa password, hoàn toàn có thể là một xâu nhị phân chứ không nhất thiết là một xâu đọc được
 std::vector<uint8_t> ZipFile::ExtractDataWithPassword(int file_index, std::string const& pwd) const {
     if (file_index >= (int)localFiles.size()) {
-        throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Invalid file index\n");
+        throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Invalid file index");
     }
     else if (file_index < 0) {
-        throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Invalid file index\n");
+        throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Invalid file index");
     }
     else return ExtractDataWithPassword(localFiles[file_index], pwd);
 }
 
 std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, std::string const& pwd) const {
     if (!zf.IsEncrypted()) {
-        throw std::invalid_argument("ZipFile::ExtractDataWithPassword: File isn't encrypted; consider using ExtractData\n");
+        throw std::invalid_argument("ZipFile::ExtractDataWithPassword: File isn't encrypted; consider using ExtractData");
     }
     ZipPassword zpwd;
     for (char c: pwd) zpwd.UpdateKey(c);
@@ -244,7 +244,7 @@ std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, Zi
             decode_data = ExtractDataWithPassword_deflate(rawData, data_span, zpwd);
         }
         else {
-            throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Unsupported compression method\n");
+            throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Unsupported compression method");
         }
 
         if (crc32_compute(decode_data) != crc32) {

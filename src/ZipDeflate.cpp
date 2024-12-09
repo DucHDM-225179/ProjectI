@@ -270,6 +270,20 @@ std::vector<uint8_t> DecodeWrapper::Decode(std::unique_ptr<ZipBitStreamInterface
                 b >>= 5;
                 int num_len = 4 + (b & 0b1111);
                 b >>= 4;
+
+                // lit code chạy từ 0-> 285
+                if (num_lit > 286) {
+                    throw std::invalid_argument("ZipFile::ZipDeflate::Decode::DynamicHuffman: Invalid number of literal code");
+                }
+                // dist code chạy từ 0->29
+                if (num_dist > 30) {
+                    throw std::invalid_argument("ZipFile::ZipDeflate::Decode::DynamicHuffman: Invalid number of distance code");
+                }
+                // length code chạy từ 0->18
+                if (num_len > 19) {
+                    throw std::invalid_argument("ZipFile::ZipDeflate::Decode::DynamicHuffman: Invalid number of length code");
+                }
+
                 if (!bitStream->SkipBit(5+5+4)) {
                     throw std::length_error("ZipFile::ZipDeflate::Decode::DynamicHuffman: Unexpected EOF");
                 }

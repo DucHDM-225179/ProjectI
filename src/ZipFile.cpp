@@ -278,7 +278,7 @@ std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const&
 }
 
 // Tấn công từ điển để dò ra mật khẩu
-void ZipFile::BruteForceFile(int file_index, std::vector<std::vector<std::string>> const& Dict, int jobs) const {
+void ZipFile::BruteForceFile(int file_index, std::vector<std::vector<std::string>> const& Dict, int jobs, int logging) const {
     if (jobs < 1) {
         throw std::invalid_argument("Invalid number of threads");
     }
@@ -288,10 +288,10 @@ void ZipFile::BruteForceFile(int file_index, std::vector<std::vector<std::string
     if (file_index < 0 || file_index >= (int)localFiles.size()) {
         throw std::invalid_argument("Invalid file index");
     }
-    BruteForceFile(localFiles[file_index], Dict, jobs);
+    BruteForceFile(localFiles[file_index], Dict, jobs, logging);
 }
 
-void ZipFile::BruteForceFile(ZipLocalFile const& zf, std::vector<std::vector<std::string>> const& Dict, int jobs) const {
+void ZipFile::BruteForceFile(ZipLocalFile const& zf, std::vector<std::vector<std::string>> const& Dict, int jobs, int logging) const {
     if (!zf.IsEncrypted()) {
         fprintf(stderr, "File is not encrypted, no need to brute-forcing...\n");
         return;
@@ -310,21 +310,35 @@ void ZipFile::BruteForceFile(ZipLocalFile const& zf, std::vector<std::vector<std
     int const Dict_sz = Dict.size();
     std::vector<unsigned long long> Base(Dict_sz, 1);
     for (int i = Dict_sz - 2; ~i; --i) Base[i] = Dict[i+1].size() * Base[i+1];
+    std::vector<std::string> possible_passwords; 
 
     std::atomic<unsigned long long> job_cnt(0);
     std::mutex cout_mutex;
-    auto thread_job = [&]() {
+    // handled_job [PHẢI] là unique cho mỗi thread
+    auto thread_job = [&](unsigned long long& handled_job) {
         unsigned long long job_idx, job_idx2;
+        handled_job = 0;
         std::vector<int> w_idx(Dict.size());
         ZipPassword zpwd;
         for (;;) {
             job_idx = job_idx2 = job_cnt++;
             if (job_idx >= total_job) break;
+
             zpwd = ZipPassword();
             for (int i = 0; i < Dict_sz; ++i) {
                 w_idx[i] = job_idx / Base[i];
                 job_idx -= Base[i] * w_idx[i];
                 for (auto& x: Dict[i][w_idx[i]]) zpwd.UpdateKey(x);
+            }
+            ++handled_job;
+
+            if (logging > 0 && ((job_idx2+1) % logging) == 0) {
+                std::lock_guard<std::mutex> guard(cout_mutex);
+                std::string cur_password = "";
+                std::cout << "Currently: " << (job_idx2 + 1) << " / " << total_job << std::endl;
+                std::cout << "Current pass: ";
+                for (int i = 0; i < Dict_sz; ++i) std::cout << Dict[i][w_idx[i]];
+                std::cout << std::endl;
             }
 
             try {
@@ -333,18 +347,35 @@ void ZipFile::BruteForceFile(ZipLocalFile const& zf, std::vector<std::vector<std
             catch (std::exception& e) {
                 continue;
             }
+
+
             std::lock_guard<std::mutex> guard(cout_mutex);
+            std::string cur_password = "";
+            for (int i = 0; i < Dict_sz; ++i) cur_password += Dict[i][w_idx[i]];
             std::cout << "Possible password: ";
-            for (int i = 0; i < Dict_sz; ++i) std::cout << Dict[i][w_idx[i]];
+            std::cout << cur_password;
             std::cout << std::endl;
+
+            possible_passwords.emplace_back(cur_password);
         }
     };
 
     std::vector<std::thread> vThread(jobs);
+    std::vector<unsigned long long> threadJobs(jobs);
     for (int i = 0; i < jobs; ++i) {
-        vThread[i] = std::thread(thread_job);
+        vThread[i] = std::thread(thread_job, std::ref(threadJobs[i]));
     }
     for (int i = 0; i < jobs; ++i) {
         vThread[i].join();
+    }
+
+    for (int i = 0; i < jobs; ++i) {
+        std::cout << "Thread " << i + 1 << ": ";
+        std::cout << "processed " << threadJobs[i] << " passwords\n";
+    }
+
+    std::cout << "Possible password: " << std::endl;
+    for (std::string& pw: possible_passwords) {
+        std::cout << pw << std::endl;
     }
 }

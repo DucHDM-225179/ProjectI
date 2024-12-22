@@ -95,6 +95,11 @@ int ZipBitStreamEncrypted::SkipBit(int bitlength) {
             return 0;
         }
         cursor_bit_read = 0;
+
+        size_t new_entry_pass_idx = cursor + zpwd_sz;
+        zpwd[new_entry_pass_idx&zpwd_modulo] = pwdKey.DecryptByte() ^ data[new_entry_pass_idx];
+        pwdKey.UpdateKey(zpwd[new_entry_pass_idx&zpwd_modulo]);
+        
         cursor += 1;
         bitlength -= bit_left_to_advance;
         if (bitlength == 0) return 1;
@@ -114,6 +119,7 @@ int ZipBitStreamEncrypted::SkipBit(int bitlength) {
         }
     } 
     cursor = new_cursor;
+    cursor_bit_read = cursor_new_bit % 8;
     return 1;
 }
 

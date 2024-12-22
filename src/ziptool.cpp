@@ -22,6 +22,7 @@ void print_help() {
     fprintf(stdout, "  -p [path to password] file: specify the file containing password use to extract file, only used in \"extract\" mode\n");
     fprintf(stdout, "  -j [number]: number of thread to use, only used in password \"bruteforce\" mode\n");
     fprintf(stdout, "  -d [DICTIONARY]: dictionary, only used in password \"bruteforce\" mode\n");
+    fprintf(stdout, "  -l [logging frequency]: log progress after [frequency] password, set to 0 to disable, only used in password \"bruteforce\" mode\n");
     fprintf(stdout, "  -f [file_path]: path to the zip file\n");
     fprintf(stdout, "[DICTIONARY]: \n");
     fprintf(stdout, "  dictionary is a collection of file, each may be used as binary mode or text mode\n");
@@ -50,6 +51,9 @@ int const DICT_TYPE_BINARY = 0;
 int const DICT_TYPE_TEXT = 1;
 int flag_dictionary_set;
 std::vector<std::pair<std::string, int>> flag_dictionary; // -d
+
+int flag_logging_frequency_set;
+int flag_logging_frequency;
 
 int flag_file_set;
 std::string flag_file; // -f
@@ -193,11 +197,18 @@ std::string read_file_text(std::string const& file_path) {
 // Đọc dữ liệu, trả về một list các string từ các dòng, bỏ qua các dòng rỗng
 std::vector<std::string> text_split_text(std::string const& data) {
     std::vector<std::string> vT;
-    std::string curs;
+    std::string curs, curs2;
     std::stringstream ss(data);
     while (std::getline(ss, curs)) {
         if (curs.size() == 0) continue;
-        vT.emplace_back(curs);
+        curs2 = "";
+        for (char c: curs) {
+            if (c == '\r') { // Windows 
+                continue;
+            }
+            curs2.push_back(c);
+        }
+        vT.emplace_back(curs2);
     }
     return vT;
 }
@@ -205,7 +216,7 @@ std::vector<std::string> text_split_text(std::string const& data) {
 // Đọc dữ liệu, mỗi byte sẽ trở thành một string độ dài 1
 std::vector<std::string> text_split_binary(std::vector<uint8_t> const& data) {
     std::vector<std::string> vT;
-    for (uint8_t d: data) {
+    for (uint8_t d: data) { //chú ý \r\n trong windows
         vT.emplace_back(std::string(1, (char)d));
     }
     return vT;
@@ -321,6 +332,28 @@ int main(int argc, char const * const argv[]) {
 
                 i += 2;
             }
+            else if (argv[i][1] == 'l') {
+                check_arg_count(i, argc, 1, argv[i]);
+                int c = parse_nonnegative_int(argv[i+1]);
+
+                if (flag_logging_frequency_set) {
+                    fprintf(stderr, "Duplicate flag: %s, aborting\n", argv[i]);
+                    exit(EXIT_FAILURE);
+                }
+
+                if (c == -1) {
+                    fprintf(stderr, "possible overflow in -l flag, aborting\n");
+                    exit(EXIT_FAILURE);
+                }
+                else if (c == -2) {
+                    fprintf(stderr, "invalid number string for -l flag, aborting\n");
+                    exit(EXIT_FAILURE);
+                }
+                flag_logging_frequency_set = 1;
+                flag_logging_frequency = c;
+
+                i += 2;
+            }
             else if (argv[i][1] == 'f') {
                 check_arg_count(i, argc, 1, argv[i]);
                 if (flag_file_set) {
@@ -427,7 +460,12 @@ int main(int argc, char const * const argv[]) {
                 }
             }
 
-            zf.BruteForceFile(flag_index_set ? flag_index: 0, Dict, flag_job);
+            int logging_frequency = 0;
+            if (flag_logging_frequency_set) {
+                logging_frequency = flag_logging_frequency;
+            }
+
+            zf.BruteForceFile(flag_index_set ? flag_index: 0, Dict, flag_job, logging_frequency);
         }
     }
     catch (std::exception& e) {

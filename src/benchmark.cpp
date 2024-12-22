@@ -190,23 +190,23 @@ int main(int argc, char const * const argv[]) {
         ZipFile zf = ZipFile(argv[2]);
         int const max_job = std::thread::hardware_concurrency();
 
-        // single_job
-        std::cout << "Benchmark on single core" << std::endl;
-        auto single_thread_start = std::chrono::steady_clock::now();
-        zf.BruteForceFile(0, Dict, 1);
-        auto single_thread_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - single_thread_start);
-        std::cout << "Single core: " << single_thread_time.count() << " ms" << std::endl;
+        std::vector<long long> run_time_info(max_job + 10);
+        for (int num_job = 1; num_job <= max_job; ++num_job) {
+            std::cout << "Benchmark on " << num_job << ((num_job>1)?" cores":" core") << std::endl;
+            auto thread_start = std::chrono::steady_clock::now();
+            zf.BruteForceFile(0, Dict, num_job);
+            auto thread_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - thread_start);
+            run_time_info[num_job] = thread_time.count();
+            std::cout << num_job << ((num_job>1)?" cores":" core") << ": " << thread_time.count() << " ms" << std::endl;
+            std::cout << "====================\n";
+        }
 
-        // max_job
-        std::cout << "Benchmark on all core" << std::endl;
-        auto max_thread_start = std::chrono::steady_clock::now();
-        zf.BruteForceFile(0, Dict, max_job);
-        auto max_thread_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - max_thread_start);
-        std::cout << "All " << max_job << " core(s): " << max_thread_time.count() << " ms" << std::endl;
-
-        std::cout << "=====================" << std::endl;
-        std::cout << "Single core: " << single_thread_time.count() << " ms" << std::endl;
-        std::cout << max_job << " core(s): " << max_thread_time.count() << " ms" << std::endl;
+        
+        std::cout << "+++++++++++++++++++" << std::endl;
+        for (int num_job = 1; num_job <= max_job; ++num_job) {
+            std::cout << num_job << ((num_job>1)?" cores":" core") << ": " << run_time_info[num_job] << " ms" << std::endl;
+        }
+        std::cout << "====================\n";
         
     }
     catch( std::exception& e) {

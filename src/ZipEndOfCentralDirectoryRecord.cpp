@@ -5,8 +5,8 @@
 
 uint32_t ZIP_END_OF_CENTRAL_DIRECTORY_RECORD_SIGNATURE = 0x06054b50;
 
-ZipEndOfCentralDirectoryRecord::ZipEndOfCentralDirectoryRecord(std::vector<uint8_t> const& data, int& _start_offset) {
-    int u = _start_offset;
+ZipEndOfCentralDirectoryRecord::ZipEndOfCentralDirectoryRecord(std::vector<uint8_t> const& data, size_t& _start_offset) {
+    size_t u = _start_offset;
     
     if (!CheckSize(data, u, 22)) {
         throw std::length_error("ZipFile::ZipEndOfCentralDirectoryRecord::Constructor: Unexpected EOF");
@@ -35,7 +35,7 @@ ZipEndOfCentralDirectoryRecord::ZipEndOfCentralDirectoryRecord(std::vector<uint8
     _start_offset = u;
 }
 
-std::pair<int,int> ZipEndOfCentralDirectoryRecord::GetDotZipFileComment() const{
+std::pair<size_t,size_t> ZipEndOfCentralDirectoryRecord::GetDotZipFileComment() const{
     return std::make_pair(dot_zip_file_comment_start_offset, dot_zip_file_comment_end_offset);
 }
 

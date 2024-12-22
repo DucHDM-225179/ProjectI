@@ -11,8 +11,8 @@ extern int const _zip_errmsg_sz;
 uint32_t const ZIP_LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
 uint32_t const ZIP_LOCAL_FILE_HEADER_DATA_DESCRIPTOR_SIGNATURE = 0x08074b50;
 
-ZipLocalFile::ZipLocalFile(std::vector<uint8_t> const& data, int& _start_offset) {
-    int u = _start_offset;
+ZipLocalFile::ZipLocalFile(std::vector<uint8_t> const& data, size_t& _start_offset) {
+    size_t u = _start_offset;
     if (!CheckSize(data, u, 30)) {
         throw std::length_error("ZipFile::ZipLocalFile::Constructor::Header: Unexpected EOF");
     }
@@ -84,15 +84,15 @@ ZipLocalFile::ZipLocalFile(std::vector<uint8_t> const& data, int& _start_offset)
     _start_offset = u;
 }
 
-std::pair<int,int> ZipLocalFile::GetFileName() const {
+std::pair<size_t,size_t> ZipLocalFile::GetFileName() const {
     return std::make_pair(file_name_start_offset, file_name_end_offset);
 }
 
-std::pair<int,int> ZipLocalFile::GetExtraField() const {
+std::pair<size_t,size_t> ZipLocalFile::GetExtraField() const {
     return std::make_pair(extra_field_start_offset, extra_field_end_offset);
 }
 
-std::pair<int,int> ZipLocalFile::GetData() const {
+std::pair<size_t,size_t> ZipLocalFile::GetData() const {
     return std::make_pair(data_start_offset, data_end_offset);
 }
 

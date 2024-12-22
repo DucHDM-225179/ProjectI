@@ -3,6 +3,7 @@
 
 #include<vector>
 #include<cstdint>
+#include<cstddef>
 
 extern int const ZIP_VERSION_MAX_MAJOR;
 extern int const ZIP_VERSION_MAX_MINOR;
@@ -31,10 +32,10 @@ protected:
     uint32_t k[3];
 };
 
-int CheckSize(std::vector<uint8_t> const& data, int start_offset, uint32_t sz);
-uint32_t GetUint32(std::vector<uint8_t> const& data, int& start_offset);
-uint16_t GetUint16(std::vector<uint8_t> const& data, int& start_offset);
-uint8_t GetUint8(std::vector<uint8_t> const& data, int& start_offset);
+int CheckSize(std::vector<uint8_t> const& data, size_t start_offset, uint32_t sz);
+uint32_t GetUint32(std::vector<uint8_t> const& data, size_t& start_offset);
+uint16_t GetUint16(std::vector<uint8_t> const& data, size_t& start_offset);
+uint8_t GetUint8(std::vector<uint8_t> const& data, size_t& start_offset);
 uint32_t crc32_compute(std::vector<uint8_t> const& data);
 
 #endif // ZIP_UTIL_H_

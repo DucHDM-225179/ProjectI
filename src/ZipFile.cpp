@@ -15,15 +15,16 @@
 #include<algorithm>
 
 // Đặt giới hạn là 128MB để tránh trường hợp thiếu RAM, cũng như không phải xử lý các trường hợp số lớn hay số gần số lớn, tràn số, ...
-int const SIZE_LIMIT = 128 * 1024 * 1024; // MB
+//int const SIZE_LIMIT = 128 * 1024 * 1024; // MB
+// Bỏ giới hạn
 extern char _zip_errmsg[];
 extern int const _zip_errmsg_sz;
 
 uint32_t ZIP_DIGITAL_SIGNATURE_HEADER = 0x05054b50;
-std::vector<std::uint8_t> ExtractData_stored(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span);
-std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span);
-std::vector<uint8_t> ExtractDataWithPassword_stored(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span, ZipPassword pwdKey);
-std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span, ZipPassword pwdKey);
+std::vector<std::uint8_t> ExtractData_stored(std::vector<uint8_t> const& rawData, std::pair<size_t,size_t> data_span);
+std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawData, std::pair<size_t,size_t> data_span);
+std::vector<uint8_t> ExtractDataWithPassword_stored(std::vector<uint8_t> const& rawData, std::pair<size_t,size_t> data_span, ZipPassword pwdKey);
+std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const& rawData, std::pair<size_t,size_t> data_span, ZipPassword pwdKey);
 
 /*
 Khởi tạo file Zip, đọc dữ liệu
@@ -40,8 +41,9 @@ ZipFile::ZipFile(std::string filepath) {
         std::streampos fsize;
         fn.seekg(0, std::ios::end);
         fsize = fn.tellg();
-        if (fsize > SIZE_LIMIT) {
-            snprintf(_zip_errmsg, _zip_errmsg_sz, "ZipFile::Constructor: File size too big, maximum supported size is %d MB", SIZE_LIMIT / 1024 / 1024);
+        // Sử dụng giới hạn 4GB của máy 32 bit
+        if (fsize > UINT_MAX) {
+            snprintf(_zip_errmsg, _zip_errmsg_sz, "ZipFile::Constructor: File size too big, maximum supported size is %d MB", UINT_MAX / 1024 / 1024);
             throw std::length_error(_zip_errmsg);
         }
         fn.seekg(0, std::ios::beg);
@@ -60,7 +62,7 @@ ZipFile::ZipFile(std::string filepath) {
     digital_signature_data_start_offset = digital_signature_data_end_offset = -1;
 
     std::vector<ZipLocalFile> _localFiles;
-    for (int curpos = 0; curpos < (int)rawData.size();) {
+    for (size_t curpos = 0; curpos < rawData.size();) {
         uint32_t header = GetUint32(rawData, curpos);
         curpos -= 4; //unget
         if (header == ZIP_LOCAL_FILE_HEADER_SIGNATURE) {
@@ -113,10 +115,10 @@ ZipFile::ZipFile(std::string filepath) {
 
     // Sắp xếp lại các file theo tên (chỉ sắp xếp theo giá trị ascii, tức tên unicode có thể sẽ không theo thứ tự alphabet, nhưng luôn đảm bảo tính stable)
     std::stable_sort(localFiles.begin(), localFiles.end(), [&](const ZipLocalFile& a, const ZipLocalFile& b) {
-        int nas, nae, nbs, nbe;
+        size_t nas, nae, nbs, nbe;
         std::tie(nas, nae) = a.GetFileName();
         std::tie(nbs, nbe) = a.GetFileName();
-        for (int i = 0; i < std::min(nae-nas, nbe-nbs); ++i) {
+        for (size_t i = 0; i < std::min(nae-nas, nbe-nbs); ++i) {
             if (rawData[nas+i] != rawData[nbs+i]) {
                 return rawData[nas+i] < rawData[nbs+i];
             }
@@ -129,10 +131,10 @@ ZipFile::ZipFile(std::string filepath) {
 std::vector<std::string> ZipFile::GetFileList() const {
     std::vector<std::string> fileList = std::vector<std::string>();
     for (ZipLocalFile const& zf: localFiles) {
-        std::pair<int,int> start_and_end = zf.GetFileName();
-        int length = start_and_end.second - start_and_end.first;
+        std::pair<size_t,size_t> start_and_end = zf.GetFileName();
+        size_t length = start_and_end.second - start_and_end.first;
         std::string filename(length, 'a');
-        for (int i = 0; i < length; ++i) {
+        for (size_t i = 0; i < length; ++i) {
             filename[i] = rawData[i+start_and_end.first];
         }
         fileList.emplace_back(filename);
@@ -171,10 +173,10 @@ std::vector<std::uint8_t> ZipFile::ExtractData(ZipLocalFile const& zf) const{
     }
 }
 
-std::vector<std::uint8_t> ExtractData_stored(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span) {
+std::vector<std::uint8_t> ExtractData_stored(std::vector<uint8_t> const& rawData, std::pair<size_t,size_t> data_span) {
     return std::vector<std::uint8_t>(rawData.begin() + data_span.first, rawData.begin() + data_span.second);
 }
-std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span) {
+std::vector<std::uint8_t> ExtractData_deflate(std::vector<uint8_t> const& rawData, std::pair<size_t,size_t> data_span) {
     ZipDeflate zdf(rawData, data_span.first, data_span.second);
     try {
         return zdf.Decode();
@@ -204,7 +206,7 @@ std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, st
 }
 
 std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, ZipPassword zpwd) const {
-    std::pair<int,int> data_span = zf.GetData();
+    std::pair<size_t,size_t> data_span = zf.GetData();
     if (data_span.second - data_span.first < 12) {
         throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Invalid encrypted header");
     }
@@ -256,7 +258,7 @@ std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, Zi
     }
 }
 
-std::vector<uint8_t> ExtractDataWithPassword_stored(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span, ZipPassword pwdKey) {
+std::vector<uint8_t> ExtractDataWithPassword_stored(std::vector<uint8_t> const& rawData, std::pair<size_t,size_t> data_span, ZipPassword pwdKey) {
     std::vector<uint8_t> decode_data;
     for (int i = data_span.first; i < data_span.second; ++i) {
         uint8_t nb = pwdKey.DecryptByte() ^ rawData[i];
@@ -266,7 +268,7 @@ std::vector<uint8_t> ExtractDataWithPassword_stored(std::vector<uint8_t> const& 
     return decode_data;
 }
 
-std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const& rawData, std::pair<int,int> data_span, ZipPassword pwdKey) {
+std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const& rawData, std::pair<size_t,size_t> data_span, ZipPassword pwdKey) {
     ZipDeflate zdf(rawData, data_span.first, data_span.second, pwdKey);
     try {
         return zdf.Decode();

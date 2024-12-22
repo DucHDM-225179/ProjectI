@@ -5,8 +5,8 @@
 
 uint32_t const ZIP_CENTRAL_FILE_HEADER_SIGNATURE = 0x02014b50;
 
-ZipCentralDirectory::ZipCentralDirectory(std::vector<uint8_t> const& data, int& _start_offset) {
-    int u = _start_offset;
+ZipCentralDirectory::ZipCentralDirectory(std::vector<uint8_t> const& data, size_t& _start_offset) {
+    size_t u = _start_offset;
     if (!CheckSize(data, u, 46)) {
         throw std::length_error("ZipFile::ZipCentralDirectory::Constructor: Unexpected EOF");
     }
@@ -65,12 +65,12 @@ ZipCentralDirectory::ZipCentralDirectory(std::vector<uint8_t> const& data, int& 
     _start_offset = u;
 }
 
-std::pair<int,int> ZipCentralDirectory::GetFileName() const{
+std::pair<size_t,size_t> ZipCentralDirectory::GetFileName() const{
     return std::make_pair(file_name_start_offset, file_name_end_offset);
 }
-std::pair<int,int> ZipCentralDirectory::GetExtraField() const{
+std::pair<size_t,size_t> ZipCentralDirectory::GetExtraField() const{
     return std::make_pair(extra_field_start_offset, extra_field_end_offset);
 }
-std::pair<int,int> ZipCentralDirectory::GetFileComment() const{
+std::pair<size_t,size_t> ZipCentralDirectory::GetFileComment() const{
     return std::make_pair(file_comment_start_offset, file_comment_end_offset);
 }

@@ -4,15 +4,16 @@
 #include<cstdint>
 #include<utility>
 #include<vector>
+#include<cstddef>
 
 extern uint32_t ZIP_END_OF_CENTRAL_DIRECTORY_RECORD_SIGNATURE;
 
-// Class chứ thông tin End Of Central Directory Record
+// Class chứa thông tin End Of Central Directory Record
 class ZipEndOfCentralDirectoryRecord {
 public:
     ZipEndOfCentralDirectoryRecord();
-    ZipEndOfCentralDirectoryRecord(std::vector<uint8_t> const& data, int& _start_offset);
-    std::pair<int,int> GetDotZipFileComment() const;
+    ZipEndOfCentralDirectoryRecord(std::vector<uint8_t> const& data, size_t& _start_offset);
+    std::pair<size_t,size_t> GetDotZipFileComment() const;
 
 protected:
     uint16_t number_of_this_disk;
@@ -23,7 +24,7 @@ protected:
     uint32_t offset_of_start_of_central_directory_with_respect_to_the_starting_disk_number;
     uint16_t dot_zip_file_comment_length;
 
-    int dot_zip_file_comment_start_offset, dot_zip_file_comment_end_offset;
+    size_t dot_zip_file_comment_start_offset, dot_zip_file_comment_end_offset;
 };
 
 #endif // ZIP_END_OF_CENTRAL_DIRECTORY_RECORD_H_

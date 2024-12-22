@@ -4,16 +4,17 @@
 #include<cstdint>
 #include<vector>
 #include<utility>
+#include<cstddef>
 
 extern uint32_t const ZIP_CENTRAL_FILE_HEADER_SIGNATURE;
 
 // Class chứa thông tin Central Directory
 class ZipCentralDirectory {
 public:
-    ZipCentralDirectory(std::vector<uint8_t> const& data, int& _start_offset);
-    std::pair<int,int> GetFileName() const;
-    std::pair<int,int> GetExtraField() const;
-    std::pair<int,int> GetFileComment() const;
+    ZipCentralDirectory(std::vector<uint8_t> const& data, size_t& _start_offset);
+    std::pair<size_t,size_t> GetFileName() const;
+    std::pair<size_t,size_t> GetExtraField() const;
+    std::pair<size_t,size_t> GetFileComment() const;
 protected:
     uint16_t version_made_by;
     uint16_t version_needed_to_extract;
@@ -32,9 +33,9 @@ protected:
     uint32_t external_file_attribute;
     uint32_t relative_offset_of_local_header;
 
-    int file_name_start_offset, file_name_end_offset;
-    int extra_field_start_offset, extra_field_end_offset;
-    int file_comment_start_offset, file_comment_end_offset;
+    size_t file_name_start_offset, file_name_end_offset;
+    size_t extra_field_start_offset, extra_field_end_offset;
+    size_t file_comment_start_offset, file_comment_end_offset;
 };
 
 #endif // ZIP_CENTRAL_DIRECTORY_H_

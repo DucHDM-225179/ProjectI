@@ -1,6 +1,8 @@
 #include<string>
 #include<vector>
 #include<cstdint>
+#include<cstddef>
+#include<climits>
 #include"ZipUtil.h"
 #include"ZipLocalFile.h"
 #include"ZipCentralDirectory.h"
@@ -31,7 +33,7 @@ protected:
     void BruteForceFile(ZipLocalFile const& zf, std::vector<std::vector<std::string>> const& Dict, int jobs) const;
 
 
-    int digital_signature_data_start_offset, digital_signature_data_end_offset;
+    size_t digital_signature_data_start_offset, digital_signature_data_end_offset;
 };
 
 #endif // ZIP_FILE_H_

@@ -4,9 +4,13 @@ Phần mềm bẻ khoả file zip
 
 Sinh viên: Huỳnh Đoàn Minh Đức - 20225179
 
+Đường dẫn báo cáo: https://www.overleaf.com/project/6756cb238a7eee7c2564c8ff
+
 # Build phần mềm
 
 ```
+git clone https://github.com/DucHDM-225179/ProjectI.git
+cd ProjectI
 mkdir build
 cd build
 cmake ..
@@ -27,6 +31,7 @@ ziptool [ARGS]
   -p [path to password] file: specify the file containing password use to extract file, only used in "extract" mode
   -j [number]: number of thread to use, only used in password "bruteforce" mode
   -d [DICTIONARY]: dictionary, only used in password "bruteforce" mode
+  -l [logging frequency]: log progress after [frequency] password, set to 0 to disable, only used in password "bruteforce" mode
   -f [file_path]: path to the zip file
 [DICTIONARY]:
   dictionary is a collection of file, each may be used as binary mode or text mode

@@ -19,7 +19,7 @@ int CheckSize(std::vector<uint8_t> const& data, size_t start_offset, uint32_t sz
     return 1;
 }
 uint32_t GetUint32(std::vector<uint8_t> const& data, size_t& start_offset) {
-    int u = start_offset;
+    size_t u = start_offset;
     uint32_t z = 0;
     z |= data[u];
     z |= data[u+1] << 8;

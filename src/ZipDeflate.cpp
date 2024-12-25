@@ -6,6 +6,7 @@
 #include<tuple>
 
 #include<cassert>
+#include<iostream>
 
 struct HuffmanTree {
     struct {
@@ -216,18 +217,18 @@ void DecodeWrapper::Decode_Huffman(std::unique_ptr<ZipBitStreamInterface>& bitSt
                 std::tie(basedist, extrabit) = extra_bit_dist_tbl[decoded];
                 b >>= bit_used;
                 bit_used += extrabit;
-                int dist = basedist + (b & ((1U << extrabit) - 1));
+                size_t dist = (size_t)(basedist) + (b & ((1U << extrabit) - 1));
                 //b >>= extrabit;
 
                 if (!bitStream->SkipBit(bit_used)) {
                     throw std::length_error("ZipFile::ZipDeflate::Decode::Huffman: Unexpected EOF");
                 }
-                if (dist > (int)decode_data.size()) {
+                if (dist > decode_data.size()) {
                     throw std::invalid_argument("ZipFile::ZipDeflate::Decode::dHuffman: Invalid distance");
                 }
 
                 // vector reallocate --> lost cache --> maybe slow?
-                for (int offset = (int)decode_data.size() - dist, j = 0; j < len; ++offset, ++j) {
+                for (size_t offset = decode_data.size() - dist, j = 0; j < len; ++offset, ++j) {
                     decode_data.emplace_back(decode_data[offset]);
                 }
             }
@@ -262,6 +263,7 @@ std::vector<uint8_t> DecodeWrapper::Decode(std::unique_ptr<ZipBitStreamInterface
                 throw;
             } 
         } else if (block_type == 2) {
+                fill(bitlen_len.begin(), bitlen_len.end(), 0);
                 /* Construct huffman */
                 b = bitStream->GetBit();
                 int num_lit = 257 + (b & 0b11111);

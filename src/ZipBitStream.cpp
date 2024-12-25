@@ -30,7 +30,7 @@ int ZipBitStream::SkipBit(int bitlength) {
             return 1;
         }
         // đọc xong byte hiện tại, tiến thêm 1 byte
-        if (1 > cursor_byte_end || cursor > cursor_byte_end - 1) {
+        if (1U > cursor_byte_end || cursor > cursor_byte_end - 1) {
             return 0;
         }
         cursor_bit_read = 0;
@@ -91,7 +91,7 @@ int ZipBitStreamEncrypted::SkipBit(int bitlength) {
             return 1;
         }
         // đọc xong byte hiện tại, tiến thêm 1 byte
-        if (1 > cursor_byte_end || cursor > cursor_byte_end - 1) {
+        if (1U > cursor_byte_end || cursor > cursor_byte_end - 1) {
             return 0;
         }
         cursor_bit_read = 0;
@@ -124,7 +124,7 @@ int ZipBitStreamEncrypted::SkipBit(int bitlength) {
 }
 
 int ZipBitStreamEncrypted::SkipToByte() {
-    if (cursor % 8) return SkipBit(8 - cursor%8);
+    if (cursor_bit_read) return SkipBit(8 - cursor_bit_read);
     else return 0;
 }
 

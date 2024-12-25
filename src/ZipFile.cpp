@@ -30,6 +30,7 @@ std::vector<uint8_t> ExtractDataWithPassword_deflate(std::vector<uint8_t> const&
 Khởi tạo file Zip, đọc dữ liệu
 Sắp xếp lại các file trong file Zip theo tên
 */
+
 ZipFile::ZipFile(std::string filepath) {
     try {
         std::ifstream fn(filepath, std::ios::binary);
@@ -49,10 +50,8 @@ ZipFile::ZipFile(std::string filepath) {
         fn.seekg(0, std::ios::beg);
 
         rawData = std::vector<uint8_t>();
-        rawData.reserve(fsize);
-        rawData.insert(rawData.begin(), 
-            std::istream_iterator<uint8_t>(fn), 
-            std::istream_iterator<uint8_t>());
+        rawData.resize(fsize);
+        fn.read((char*)rawData.data(), rawData.size());
     } catch (std::ifstream::failure &e) {
         throw std::invalid_argument("ZipFile::Constructor: Cannot read zip file");
     }
@@ -106,7 +105,7 @@ ZipFile::ZipFile(std::string filepath) {
             throw std::invalid_argument("ZipFile::Constructor: Unrecognized header, might belong to a proprietary zip format");
         }
     }
-
+    
     // Lọc các file có độ lớn là 0 (các folder)
     std::copy_if(_localFiles.begin(), _localFiles.end(), std::back_inserter(localFiles), 
         [&](const ZipLocalFile& zf) {
@@ -260,7 +259,7 @@ std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, Zi
 
 std::vector<uint8_t> ExtractDataWithPassword_stored(std::vector<uint8_t> const& rawData, std::pair<size_t,size_t> data_span, ZipPassword pwdKey) {
     std::vector<uint8_t> decode_data;
-    for (int i = data_span.first; i < data_span.second; ++i) {
+    for (size_t i = data_span.first; i < data_span.second; ++i) {
         uint8_t nb = pwdKey.DecryptByte() ^ rawData[i];
         pwdKey.UpdateKey(nb);
         decode_data.emplace_back(nb);

@@ -20,6 +20,7 @@ void print_help() {
     fprintf(stdout, "  -m [mode name]: one of \"[b]ruteforce\", \"[l]ist\", \"[e]xtract\"\n" );
     fprintf(stdout, "  -i [index]: the index of the file to extract/bruteforce, refer to \"list\" mode to find which index is needed\n");
     fprintf(stdout, "  -p [path to password] file: specify the file containing password use to extract file, only used in \"extract\" mode\n");
+    fprintf(stdout, "  -o [output] path file: specify where to write the extracted data to, only used in \"extract\" mode, default to stdout if not specified\n"); /* windows \r\n shenaningans*/
     fprintf(stdout, "  -j [number]: number of thread to use, only used in password \"bruteforce\" mode\n");
     fprintf(stdout, "  -d [DICTIONARY]: dictionary, only used in password \"bruteforce\" mode\n");
     fprintf(stdout, "  -l [logging frequency]: log progress after [frequency] password, set to 0 to disable, only used in password \"bruteforce\" mode\n");
@@ -43,6 +44,10 @@ int flag_index; // -i
 
 int flag_password_set;
 std::string flag_password;
+
+int flag_output_set;
+std::string flag_output;
+
 
 int flag_job_set;
 int flag_job; // -j
@@ -374,6 +379,16 @@ int main(int argc, char const * const argv[]) {
                 flag_password = std::string(argv[i+1]);
                 i += 2;
             }
+            else if (argv[i][1] == 'o') {
+                check_arg_count(i, argc, 1, argv[i]);
+                if (flag_output_set) {
+                    fprintf(stderr, "Duplicate flag: %s, aborting\n", argv[i]);
+                    exit(EXIT_FAILURE);
+                }
+                flag_output_set = 1;
+                flag_output = std::string(argv[i+1]); /* hopyfully have write permission, and not write to any critical resources */
+                i += 2;
+            }
             else if (argv[i][1] == 'd') {
                 check_arg_count(i, argc, 1, argv[i]);
                 if (flag_dictionary_set) {
@@ -433,8 +448,19 @@ int main(int argc, char const * const argv[]) {
                 file_data = zf.ExtractData(flag_index);
             }
             
-            for (uint8_t c: file_data) {
-                fprintf(stdout, "%c", c);
+            if (flag_output_set) {
+                std::ofstream file_out_stream(flag_output, std::ios::binary);
+                if (file_out_stream.fail()) {
+                    fprintf(stderr, "cannot open %s to write, aborting...\n", flag_output.c_str());
+                    return EXIT_FAILURE;
+                }
+                file_out_stream.write((char*)file_data.data(), file_data.size());
+                file_out_stream.close();
+            }
+            else {    
+                for (uint8_t c: file_data) {
+                    fprintf(stdout, "%c", c);
+                }
             }
             return EXIT_SUCCESS;
         }

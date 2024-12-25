@@ -29,6 +29,7 @@ ziptool [ARGS]
   -m [mode name]: one of "[b]ruteforce", "[l]ist", "[e]xtract"
   -i [index]: the index of the file to extract/bruteforce, refer to "list" mode to find which index is needed
   -p [path to password] file: specify the file containing password use to extract file, only used in "extract" mode
+  -o [output] path file: specify where to write the extracted data to, only used in "extract" mode, default to stdout if not specified
   -j [number]: number of thread to use, only used in password "bruteforce" mode
   -d [DICTIONARY]: dictionary, only used in password "bruteforce" mode
   -l [logging frequency]: log progress after [frequency] password, set to 0 to disable, only used in password "bruteforce" mode

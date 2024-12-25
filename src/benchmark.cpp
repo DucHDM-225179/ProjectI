@@ -150,11 +150,18 @@ std::string read_file_text(std::string const& file_path) {
 // Đọc dữ liệu, trả về một list các string từ các dòng, bỏ qua các dòng rỗng
 std::vector<std::string> text_split_text(std::string const& data) {
     std::vector<std::string> vT;
-    std::string curs;
+    std::string curs, curs2;
     std::stringstream ss(data);
     while (std::getline(ss, curs)) {
         if (curs.size() == 0) continue;
-        vT.emplace_back(curs);
+        curs2 = "";
+        for (char c: curs) {
+            if (c == '\r') { // Windows 
+                continue;
+            }
+            curs2.push_back(c);
+        }
+        vT.emplace_back(curs2);
     }
     return vT;
 }

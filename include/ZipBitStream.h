@@ -24,7 +24,7 @@ public:
 // Xử lý truyền dòng Bit với file không mã hoá
 class ZipBitStream : public ZipBitStreamInterface {
 public:
-    ZipBitStream() : data(std::vector<uint8_t>(0)), bytesize(0), initial_cursor(0), cursor(0), cursor_bit_read(0) {}
+    ZipBitStream() : data(local_nullref), bytesize(0), initial_cursor(0), cursor(0), cursor_bit_read(0) {}
     ZipBitStream(std::vector<uint8_t> const& d) : data(d), bytesize(d.size()), initial_cursor(0), cursor(0), cursor_bit_read(0) {}
     ZipBitStream(std::vector<uint8_t> const& d, size_t start_byte_offset, size_t end_byte_offset) 
         : data(d), bytesize((end_byte_offset - start_byte_offset)), 
@@ -40,6 +40,9 @@ protected:
     size_t const initial_cursor;
     size_t cursor;
     int cursor_bit_read; // 0 <= bit_read <= 7
+
+private:
+    static std::vector<uint8_t> local_nullref;
 };
 
 // Xử lý truyền dòng bit với file mã hoá

@@ -114,3 +114,7 @@ uint16_t ZipLocalFile::GetVersionNeeded() const {
 uint16_t ZipLocalFile::GetUncompressedSize() const {
     return uncompressed_size;
 }
+
+uint16_t ZipLocalFile::GetModTime() const {
+    return last_mod_file_time;
+}

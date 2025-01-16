@@ -222,15 +222,22 @@ std::vector<uint8_t> ZipFile::ExtractDataWithPassword(ZipLocalFile const& zf, Zi
     if (major < 2) { /* ZIP 1.x, use 2 byte */
         crc_got = (buf[11] << 8) | buf[10];
         crc_check >>= 16;
+
+        if (crc_got != crc_check) { // Info-Zip (linux) sử dụng một cách khác
+            crc_check = zf.GetModTime() & 0xffff;
+            crc_got = (buf[11] << 8) | buf[10];
+        }
     }
     else { /* ZIP 2.0, use 1 byte */
         crc_got = buf[11];
         crc_check >>= 24;
+
+        if (crc_got != crc_check) { // Info-Zip (linux) sử dụng một cách khác
+            crc_check = (zf.GetModTime() >> 8) & 0xff;
+            crc_got = buf[11];
+        }
     }
-    if (crc_got != crc_check) { // Info-Zip (linux) sử dụng một cách khác
-        crc_check = zf.GetModTime() & 0xffff;
-        crc_got = (buf[11] << 8) | buf[10];
-    }
+    
 
     if (crc_got != crc_check) {
         throw std::invalid_argument("ZipFile::ExtractDataWithPassword: Mismatch crc32 check, maybe wrong password");
